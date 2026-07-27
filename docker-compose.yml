@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  signaling-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    ports:
+      - "9876:9876"
+    networks:
+      neia-net:
+        ipv4_address: 172.20.0.2
+
+  peer-a:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      - signaling-server
+    environment:
+      - SIGNALING_URL=ws://172.20.0.2:9876
+      - ROLE=PEER_A
+    networks:
+      neia-net:
+        ipv4_address: 172.20.0.3
+    command: node scripts/e2e-peer-test.js
+
+  peer-b:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      - signaling-server
+    environment:
+      - SIGNALING_URL=ws://172.20.0.2:9876
+      - ROLE=PEER_B
+    networks:
+      neia-net:
+        ipv4_address: 172.20.0.4
+    command: node scripts/e2e-peer-test.js
+
+networks:
+  neia-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

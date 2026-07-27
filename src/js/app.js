@@ -40,12 +40,14 @@ const elements = {
   statJitter: document.getElementById('stat-jitter'),
   statLoss: document.getElementById('stat-loss'),
   statHealth: document.getElementById('stat-health'),
+  testAudioBtn: document.getElementById('test-audio-btn'),
 };
 
 let state = {
   nickname: '',
   roomCode: null,
   isMuted: false,
+  isTestingAudio: false,
   myPeerId: null,
   peers: new Map(),
   peerStreams: new Map(),
@@ -158,6 +160,35 @@ async function initializeMedia(roomCode) {
     audio.autoplay = true;
     audio.id = `audio-${peerId}`;
     document.body.appendChild(audio);
+
+    audio.play().catch(err => console.log('[Audio] Autoplay handling:', err));
+
+    if (state.audioContext) {
+      try {
+        const remoteSource = state.audioContext.createMediaStreamSource(stream);
+        const remoteAnalyser = state.audioContext.createAnalyser();
+        remoteAnalyser.fftSize = 1024;
+        remoteSource.connect(remoteAnalyser);
+
+        const remoteBuffer = new Float32Array(remoteAnalyser.fftSize);
+        const remoteInterval = setInterval(() => {
+          if (!state.peerStreams.has(peerId)) {
+            clearInterval(remoteInterval);
+            return;
+          }
+          remoteAnalyser.getFloatTimeDomainData(remoteBuffer);
+          let sum = 0;
+          for (let i = 0; i < remoteBuffer.length; i++) {
+            sum += remoteBuffer[i] * remoteBuffer[i];
+          }
+          const rms = Math.sqrt(sum / remoteBuffer.length);
+          updatePeerSpeaking(peerId, rms > 0.01);
+        }, 100);
+      } catch (err) {
+        console.warn('[Audio] Remote analyser setup:', err);
+      }
+    }
+
     notify(`Peer connected: ${peerId.substring(0, 8)}`);
 
     try {
@@ -449,6 +480,47 @@ function addPeer(peerId, nickname) {
   name.className = 'peer-name';
   name.textContent = nickname;
 
+  const controls = document.createElement('div');
+  controls.className = 'peer-audio-controls';
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = '100';
+  slider.value = '100';
+  slider.className = 'peer-volume-slider';
+  slider.title = 'Adjust participant volume';
+  slider.addEventListener('input', (e) => {
+    e.stopPropagation();
+    const audio = document.getElementById(`audio-${peerId}`);
+    if (audio) {
+      audio.volume = slider.value / 100;
+      if (audio.volume === 0) {
+        audio.muted = true;
+        muteBtn.textContent = '🔇';
+      } else {
+        audio.muted = false;
+        muteBtn.textContent = '🔊';
+      }
+    }
+  });
+
+  const muteBtn = document.createElement('button');
+  muteBtn.className = 'peer-mute-btn';
+  muteBtn.textContent = '🔊';
+  muteBtn.title = 'Mute participant audio';
+  muteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const audio = document.getElementById(`audio-${peerId}`);
+    if (audio) {
+      audio.muted = !audio.muted;
+      muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+    }
+  });
+
+  controls.appendChild(slider);
+  controls.appendChild(muteBtn);
+
   const status = document.createElement('div');
   status.className = 'peer-status';
   const indicator = document.createElement('div');
@@ -457,6 +529,7 @@ function addPeer(peerId, nickname) {
 
   peerEl.appendChild(avatar);
   peerEl.appendChild(name);
+  peerEl.appendChild(controls);
   peerEl.appendChild(status);
   elements.peersList.appendChild(peerEl);
 }
@@ -539,11 +612,71 @@ function setHealthBadge(health) {
   else if (health === 'Poor') elements.statHealth.classList.add('poor');
 }
 
+async function toggleAudioLoopbackTest() {
+  if (state.isTestingAudio) {
+    stopVAD();
+    state.isTestingAudio = false;
+    if (elements.testAudioBtn) {
+      elements.testAudioBtn.classList.remove('btn-danger');
+      elements.testAudioBtn.classList.add('btn-secondary');
+      elements.testAudioBtn.textContent = '🧪 Test Audio';
+    }
+    notify('Audio test ended');
+    return;
+  }
+
+  try {
+    state.isTestingAudio = true;
+    if (elements.testAudioBtn) {
+      elements.testAudioBtn.classList.remove('btn-secondary');
+      elements.testAudioBtn.classList.add('btn-danger');
+      elements.testAudioBtn.textContent = '🛑 Stop Test';
+    }
+
+    const testStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = state.audioContext.createMediaStreamSource(testStream);
+    const delay = state.audioContext.createDelay();
+    delay.delayTime.value = 0.1; // 100ms echo delay
+
+    source.connect(delay);
+    delay.connect(state.audioContext.destination);
+
+    state.localAnalyser = state.audioContext.createAnalyser();
+    state.localAnalyser.fftSize = 2048;
+    source.connect(state.localAnalyser);
+
+    const buffer = new Float32Array(state.localAnalyser.fftSize);
+    state.nickname = state.nickname || 'Tester';
+    renderLocalUser();
+    showView('room');
+
+    state.vadInterval = setInterval(() => {
+      state.localAnalyser.getFloatTimeDomainData(buffer);
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i++) {
+        sum += buffer[i] * buffer[i];
+      }
+      const rms = Math.sqrt(sum / buffer.length);
+      updatePeerSpeaking('local', rms > 0.01);
+    }, 100);
+
+    notify('🧪 Mic Loopback Active: Speak into your mic to hear your voice echo with 100ms delay!');
+  } catch (err) {
+    notify(`Audio test error: ${err.message}`);
+    state.isTestingAudio = false;
+  }
+}
+
 elements.createRoomBtn.addEventListener('click', createRoom);
 
 elements.joinRoomBtn.addEventListener('click', () => {
   elements.joinRoomSection.classList.toggle('hidden');
 });
+
+if (elements.testAudioBtn) {
+  elements.testAudioBtn.addEventListener('click', toggleAudioLoopbackTest);
+}
 
 elements.joinForm.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -573,6 +706,12 @@ elements.chatForm.addEventListener('submit', (e) => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('click', () => {
+    if (state.audioContext && state.audioContext.state === 'suspended') {
+      state.audioContext.resume();
+    }
+  });
+
   const urlParams = new URLSearchParams(window.location.search);
   const roomParam = urlParams.get('room');
   if (roomParam) {
