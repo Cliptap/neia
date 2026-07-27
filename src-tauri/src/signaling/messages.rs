@@ -7,7 +7,10 @@ pub enum SignalMessage {
     Join { room: String, nickname: String },
 
     #[serde(rename = "peers")]
-    Peers { peers: Vec<PeerInfo> },
+    Peers {
+        my_id: String,
+        peers: Vec<PeerInfo>,
+    },
 
     #[serde(rename = "peer_joined")]
     PeerJoined { peer: PeerInfo },

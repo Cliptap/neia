@@ -82,9 +82,12 @@ impl SignalingServer {
 
                                 current_room = Some(room.clone());
 
-                                // Send list of existing peers to the new peer
+                                // Send list of existing peers and assigned my_id to the new peer
                                 let peers_list = Self::get_room_peers(&peers, &peer_id).await;
-                                let peers_msg = messages::SignalMessage::Peers { peers: peers_list };
+                                let peers_msg = messages::SignalMessage::Peers {
+                                    my_id: peer_id.clone(),
+                                    peers: peers_list,
+                                };
                                 writer.send(Message::Text(serde_json::to_string(&peers_msg)?.into())).await?;
 
                                 // Send existing chat history to the new peer

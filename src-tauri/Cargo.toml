@@ -27,3 +27,8 @@ sha2 = "0.10"
 aes-gcm = "0.10"
 uuid = { version = "1", features = ["v4"] }
 
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows = { version = "0.59", features = ["Win32_Foundation"] }
+
+

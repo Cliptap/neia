@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:clean": "node scripts/clean-build.js",
     "preview": "vite preview",
     "test:quality": "node scripts/quality-test.js",
     "tauri": "tauri"

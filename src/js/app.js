@@ -186,7 +186,11 @@ async function initializeMedia(roomCode) {
   };
 
   state.signaling.on('peers', async (msg) => {
+    if (msg.my_id) {
+      state.myPeerId = msg.my_id;
+    }
     for (const peer of msg.peers) {
+      if (peer.id === state.myPeerId) continue;
       state.peers.set(peer.id, { nickname: peer.nickname });
       addPeer(peer.id, peer.nickname);
 
@@ -197,6 +201,7 @@ async function initializeMedia(roomCode) {
 
   state.signaling.on('peer_joined', (msg) => {
     const { peer } = msg;
+    if (peer.id === state.myPeerId) return;
     state.peers.set(peer.id, { nickname: peer.nickname });
     addPeer(peer.id, peer.nickname);
     notify(`${peer.nickname} joined`);
