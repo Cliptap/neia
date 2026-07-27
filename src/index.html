@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEIA - Secure Voice Chat</title>
+    <script type="module" src="/js/app.js" defer></script>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>NEIA</h1>
+        <p>Secure P2P Voice Chat</p>
+      </header>
+
+      <main>
+        <section id="landing-view" class="view active">
+          <div class="card">
+            <h2>Welcome</h2>
+            <p>Choose a nickname to get started</p>
+            
+            <form id="nickname-form">
+              <label for="nickname-input">Nickname</label>
+              <input 
+                type="text" 
+                id="nickname-input" 
+                placeholder="Enter your nickname"
+                maxlength="20"
+                required
+              />
+              
+              <div class="button-group">
+                <button type="button" id="create-room-btn" class="btn btn-primary">
+                  Create Room
+                </button>
+                <button type="button" id="join-room-btn" class="btn btn-secondary">
+                  Join Room
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div id="join-room-section" class="card hidden">
+            <h3>Join Existing Room</h3>
+            <form id="join-form">
+              <label for="room-code-input">Room Code</label>
+              <input 
+                type="text" 
+                id="room-code-input" 
+                placeholder="ABC123"
+                maxlength="6"
+                required
+              />
+              <button type="submit" class="btn btn-primary">Join</button>
+            </form>
+          </div>
+        </section>
+
+        <section id="room-view" class="view hidden">
+          <div class="room-header">
+            <div class="room-info">
+              <h2>Room: <span id="room-code-display"></span></h2>
+              <button id="copy-room-link-btn" class="btn btn-small" title="Copy invite link">
+                📋 Copy Link
+              </button>
+            </div>
+            <button id="leave-room-btn" class="btn btn-danger">Leave Room</button>
+          </div>
+
+          <div class="room-content">
+            <div class="peers-section">
+              <h3>Participants</h3>
+              <div id="peers-list" class="peers-list">
+                <div class="peer-item">
+                  <div class="peer-avatar">Y</div>
+                  <span class="peer-name">You</span>
+                  <div class="peer-status">
+                    <div class="speaking-indicator"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-section">
+              <h3>Chat</h3>
+              <div id="chat-messages" class="chat-messages"></div>
+              <form id="chat-form" class="chat-form">
+                <input 
+                  type="text" 
+                  id="chat-input" 
+                  placeholder="Type a message..."
+                  maxlength="500"
+                />
+                <button type="submit" class="btn btn-primary">Send</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="controls">
+            <button id="mute-btn" class="btn btn-control">
+              <span id="mute-icon">🎤</span>
+              <span id="mute-text">Mute</span>
+            </button>
+            <div class="verification-section">
+              <button id="verify-keys-btn" class="btn btn-secondary">
+                🔐 Verify Encryption
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section id="verification-modal" class="modal hidden">
+          <div class="modal-content">
+            <h3>Verify Encryption Keys</h3>
+            <p>Compare this fingerprint with your peers to ensure secure connection:</p>
+            <div class="fingerprint-display">
+              <code id="fingerprint-code">------</code>
+            </div>
+            <div class="verification-actions">
+              <button id="verify-confirm-btn" class="btn btn-primary">
+                ✓ Verified
+              </button>
+              <button id="verify-cancel-btn" class="btn btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div id="notifications" class="notifications"></div>
+    </div>
+  </body>
+</html>
