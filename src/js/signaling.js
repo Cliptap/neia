@@ -79,6 +79,10 @@ export class SignalingClient {
     this.send({ type: 'ice', to, candidate: JSON.stringify(candidate) });
   }
 
+  sendChat(nickname, text) {
+    this.send({ type: 'chat', nickname, text, timestamp: Date.now() });
+  }
+
   tryReconnect(room, nickname) {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error('[Signaling] Max reconnect attempts reached');

@@ -39,6 +39,7 @@ let state = {
   nickname: '',
   roomCode: null,
   isMuted: false,
+  myPeerId: null,
   peers: new Map(),
   peerStreams: new Map(),
   signaling: null,
@@ -46,6 +47,7 @@ let state = {
   audioContext: null,
   localAnalyser: null,
   vadInterval: null,
+  recentMessages: new Set(),
 };
 
 function showView(viewName) {
@@ -65,6 +67,22 @@ function notify(message) {
   setTimeout(() => notification.remove(), 3000);
 }
 
+function renderLocalUser() {
+  let selfPeer = elements.peersList.querySelector('[data-peer-id="local"]');
+  if (!selfPeer) {
+    selfPeer = document.createElement('div');
+    selfPeer.className = 'peer-item self';
+    selfPeer.dataset.peerId = 'local';
+    elements.peersList.appendChild(selfPeer);
+  }
+  const initial = (state.nickname || 'Y').charAt(0).toUpperCase();
+  selfPeer.innerHTML = `
+    <div class="peer-avatar" style="background-color: #00d9a6;">${initial}</div>
+    <span class="peer-name">You (${state.nickname})</span>
+    <div class="peer-status"><div class="speaking-indicator"></div></div>
+  `;
+}
+
 async function createRoom() {
   try {
     const nickname = elements.nicknameInput.value.trim();
@@ -80,6 +98,7 @@ async function createRoom() {
     elements.roomCodeDisplay.textContent = roomCode;
 
     await initializeMedia(roomCode);
+    renderLocalUser();
     showView('room');
     notify(`Room created: ${roomCode}`);
   } catch (error) {
@@ -102,6 +121,7 @@ async function joinRoom(roomCode) {
     elements.roomCodeDisplay.textContent = validatedCode;
 
     await initializeMedia(validatedCode);
+    renderLocalUser();
     showView('room');
     notify(`Joined room: ${validatedCode}`);
   } catch (error) {
@@ -183,24 +203,45 @@ async function initializeMedia(roomCode) {
   });
 
   state.signaling.on('peer_left', (msg) => {
+    const peerInfo = state.peers.get(msg.peer_id);
     state.peers.delete(msg.peer_id);
     state.webrtc.removePeer(msg.peer_id);
     removePeer(msg.peer_id);
-    const peerInfo = state.peers.get(msg.peer_id);
     notify(`${peerInfo?.nickname || 'Peer'} left`);
   });
 
   state.signaling.on('offer', async (msg) => {
-    const answer = await state.webrtc.handleOffer(msg.to, msg.sdp);
-    state.signaling.sendAnswer(msg.to, JSON.stringify(answer));
+    const fromId = msg.from;
+    if (!fromId) return;
+    state.peers.set(fromId, state.peers.get(fromId) || { nickname: 'Peer' });
+    const answer = await state.webrtc.handleOffer(fromId, msg.sdp);
+    state.signaling.sendAnswer(fromId, JSON.stringify(answer));
   });
 
   state.signaling.on('answer', async (msg) => {
-    await state.webrtc.handleAnswer(msg.to, msg.sdp);
+    const fromId = msg.from;
+    if (!fromId) return;
+    await state.webrtc.handleAnswer(fromId, msg.sdp);
   });
 
   state.signaling.on('ice', async (msg) => {
-    await state.webrtc.handleIceCandidate(msg.to, msg.candidate);
+    const fromId = msg.from;
+    if (!fromId) return;
+    await state.webrtc.handleIceCandidate(fromId, msg.candidate);
+  });
+
+  state.signaling.on('chat_history', (msg) => {
+    if (msg.messages && Array.isArray(msg.messages)) {
+      msg.messages.forEach(item => {
+        addPeerMessage(item.from_id, item.nickname, item.text);
+      });
+    }
+  });
+
+  state.signaling.on('chat', (msg) => {
+    if (msg.from_id && msg.from_id !== state.myPeerId) {
+      addPeerMessage(msg.from_id, msg.nickname, msg.text);
+    }
   });
 
   await state.signaling.connect(roomCode, state.nickname);
@@ -267,6 +308,7 @@ async function leaveRoom() {
 
     state.roomCode = null;
     state.peers.clear();
+    state.recentMessages.clear();
     elements.peersList.innerHTML = '';
     elements.chatMessages.innerHTML = '';
     showView('landing');
@@ -291,7 +333,7 @@ function toggleMute() {
 
 async function copyRoomLink() {
   try {
-    const link = `neia://join?room=${state.roomCode}`;
+    const link = `${window.location.origin}${window.location.pathname}?room=${state.roomCode}`;
     await navigator.clipboard.writeText(link);
     notify('Invite link copied!');
   } catch {
@@ -322,6 +364,23 @@ function hideVerification() {
 }
 
 function sendChatMessage(message) {
+  renderOwnChatMessage(message);
+
+  if (state.webrtc) {
+    state.webrtc.broadcast({ type: 'chat', text: message });
+  }
+
+  if (state.signaling) {
+    state.signaling.sendChat(state.nickname, message);
+  }
+}
+
+function renderOwnChatMessage(message) {
+  const msgKey = `local:${message}`;
+  if (state.recentMessages.has(msgKey)) return;
+  state.recentMessages.add(msgKey);
+  setTimeout(() => state.recentMessages.delete(msgKey), 5000);
+
   const messageEl = document.createElement('div');
   messageEl.className = 'chat-message own';
 
@@ -332,13 +391,14 @@ function sendChatMessage(message) {
   messageEl.appendChild(textEl);
   elements.chatMessages.appendChild(messageEl);
   elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-
-  if (state.webrtc) {
-    state.webrtc.broadcast({ type: 'chat', text: message });
-  }
 }
 
 function addPeerMessage(peerId, nickname, message) {
+  const msgKey = `${peerId}:${message}`;
+  if (state.recentMessages.has(msgKey)) return;
+  state.recentMessages.add(msgKey);
+  setTimeout(() => state.recentMessages.delete(msgKey), 5000);
+
   const messageEl = document.createElement('div');
   messageEl.className = 'chat-message';
 
@@ -357,6 +417,7 @@ function addPeerMessage(peerId, nickname, message) {
 }
 
 function addPeer(peerId, nickname) {
+  if (peerId === 'local' || peerId === state.myPeerId) return;
   if (elements.peersList.querySelector(`[data-peer-id="${peerId}"]`)) return;
 
   const peerEl = document.createElement('div');
@@ -392,10 +453,6 @@ function updatePeerSpeaking(peerId, isSpeaking) {
   let el;
   if (peerId === 'local') {
     el = elements.peersList.querySelector('[data-peer-id="local"]');
-    if (!el) {
-      const existingSelf = elements.peersList.querySelector('.peer-item.self');
-      if (existingSelf) el = existingSelf;
-    }
   } else {
     el = elements.peersList.querySelector(`[data-peer-id="${peerId}"]`);
   }
@@ -441,16 +498,6 @@ elements.chatForm.addEventListener('submit', (e) => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-  const selfPeer = document.createElement('div');
-  selfPeer.className = 'peer-item self';
-  selfPeer.dataset.peerId = 'local';
-  selfPeer.innerHTML = `
-    <div class="peer-avatar" style="background-color: #00d9a6;">Y</div>
-    <span class="peer-name">You</span>
-    <div class="peer-status"><div class="speaking-indicator"></div></div>
-  `;
-  elements.peersList.appendChild(selfPeer);
-
   const urlParams = new URLSearchParams(window.location.search);
   const roomParam = urlParams.get('room');
   if (roomParam) {
@@ -460,4 +507,3 @@ window.addEventListener('DOMContentLoaded', () => {
 
   showView('landing');
 });
-
