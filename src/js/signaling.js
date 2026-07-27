@@ -1,6 +1,8 @@
 export class SignalingClient {
-  constructor(serverUrl) {
-    this.serverUrl = serverUrl;
+  constructor(serverUrls = ['ws://127.0.0.1:9876']) {
+    this.serverUrls = Array.isArray(serverUrls) ? serverUrls : [serverUrls];
+    this.currentUrlIndex = 0;
+    this.serverUrl = this.serverUrls[this.currentUrlIndex];
     this.ws = null;
     this.handlers = {};
     this.reconnectAttempts = 0;
@@ -10,10 +12,12 @@ export class SignalingClient {
 
   connect(room, nickname) {
     return new Promise((resolve, reject) => {
+      this.serverUrl = this.serverUrls[this.currentUrlIndex];
+      console.log(`[Signaling] Connecting to ${this.serverUrl}...`);
       this.ws = new WebSocket(this.serverUrl);
 
       this.ws.onopen = () => {
-        console.log('[Signaling] Connected');
+        console.log(`[Signaling] Connected to ${this.serverUrl}`);
         this.reconnectAttempts = 0;
         this.send({ type: 'join', room, nickname });
         resolve();
@@ -30,12 +34,18 @@ export class SignalingClient {
 
       this.ws.onclose = () => {
         console.log('[Signaling] Disconnected');
-        this.tryReconnect(room, nickname);
+        this.tryNextUrlOrReconnect(room, nickname);
       };
 
       this.ws.onerror = (err) => {
-        console.error('[Signaling] Error:', err);
-        reject(err);
+        console.error('[Signaling] Error on', this.serverUrl, err);
+        if (this.currentUrlIndex < this.serverUrls.length - 1) {
+          this.currentUrlIndex++;
+          console.log(`[Signaling] Falling back to next URL: ${this.serverUrls[this.currentUrlIndex]}`);
+          this.connect(room, nickname).then(resolve).catch(reject);
+        } else {
+          reject(err);
+        }
       };
     });
   }

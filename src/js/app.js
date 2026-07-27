@@ -2,7 +2,7 @@ const { invoke } = window.__TAURI__.core;
 import { SignalingClient } from './signaling.js';
 import { WebRTCManager } from './webrtc.js';
 
-const SIGNALING_URL = 'ws://localhost:9876';
+const SIGNALING_URLS = ['wss://signal.siec.live', 'ws://127.0.0.1:9876'];
 
 const views = {
   landing: document.getElementById('landing-view'),
@@ -141,7 +141,7 @@ async function joinRoom(roomCode) {
 
 async function initializeMedia(roomCode) {
   state.webrtc = new WebRTCManager();
-  state.signaling = new SignalingClient(SIGNALING_URL);
+  state.signaling = new SignalingClient(SIGNALING_URLS);
 
   try {
     await state.webrtc.initLocalStream();
