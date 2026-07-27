@@ -2,7 +2,7 @@ import WebSocket from 'ws';
 import fs from 'fs';
 import path from 'path';
 
-const SIGNALING_URL = 'ws://127.0.0.1:9876';
+const SIGNALING_URL = process.env.SIGNALING_URL || 'ws://127.0.0.1:9876';
 const ROOM = 'E2ETEST99';
 
 async function runE2EPeerTestSuite() {

@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_fingerprint() {
-        let mut alice = KeyManager::new();
+        let alice = KeyManager::new();
         let bob = KeyManager::new();
 
         let bob_pub = *bob.public_key().as_bytes();
