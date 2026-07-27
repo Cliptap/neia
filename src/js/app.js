@@ -33,6 +33,13 @@ const elements = {
   chatInput: document.getElementById('chat-input'),
   chatMessages: document.getElementById('chat-messages'),
   notifications: document.getElementById('notifications'),
+  statsBtn: document.getElementById('stats-btn'),
+  statsModal: document.getElementById('stats-modal'),
+  statsCloseBtn: document.getElementById('stats-close-btn'),
+  statRtt: document.getElementById('stat-rtt'),
+  statJitter: document.getElementById('stat-jitter'),
+  statLoss: document.getElementById('stat-loss'),
+  statHealth: document.getElementById('stat-health'),
 };
 
 let state = {
@@ -47,6 +54,7 @@ let state = {
   audioContext: null,
   localAnalyser: null,
   vadInterval: null,
+  statsInterval: null,
   recentMessages: new Set(),
 };
 
@@ -138,6 +146,10 @@ async function initializeMedia(roomCode) {
   } catch {
     notify('Microphone access denied');
   }
+
+  state.webrtc.onIceCandidate = (peerId, candidate) => {
+    state.signaling.sendIce(peerId, candidate);
+  };
 
   state.webrtc.onPeerConnected = async (peerId, stream) => {
     state.peerStreams.set(peerId, stream);
@@ -471,6 +483,62 @@ function updatePeerSpeaking(peerId, isSpeaking) {
   }
 }
 
+async function showStatsModal() {
+  elements.statsModal.classList.remove('hidden');
+  await updateLiveStats();
+  if (!state.statsInterval) {
+    state.statsInterval = setInterval(updateLiveStats, 1000);
+  }
+}
+
+function hideStatsModal() {
+  elements.statsModal.classList.add('hidden');
+  if (state.statsInterval) {
+    clearInterval(state.statsInterval);
+    state.statsInterval = null;
+  }
+}
+
+async function updateLiveStats() {
+  if (!state.webrtc) return;
+
+  let firstPeerId = null;
+  for (const [peerId] of state.peers) {
+    firstPeerId = peerId;
+    break;
+  }
+
+  if (!firstPeerId) {
+    elements.statRtt.textContent = '0 ms';
+    elements.statJitter.textContent = '0 ms';
+    elements.statLoss.textContent = '0.0 %';
+    setHealthBadge('Optimal');
+    return;
+  }
+
+  const metrics = await state.webrtc.getPeerMetrics(firstPeerId);
+  if (metrics) {
+    elements.statRtt.textContent = `${metrics.rtt} ms`;
+    elements.statJitter.textContent = `${metrics.jitter} ms`;
+    elements.statLoss.textContent = `${metrics.packetLossRate} %`;
+
+    let health = 'Optimal';
+    if (metrics.rtt > 200 || parseFloat(metrics.packetLossRate) > 5) {
+      health = 'Poor';
+    } else if (metrics.rtt > 100 || parseFloat(metrics.packetLossRate) > 1) {
+      health = 'Fair';
+    }
+    setHealthBadge(health);
+  }
+}
+
+function setHealthBadge(health) {
+  elements.statHealth.textContent = health;
+  elements.statHealth.className = 'stat-value health-badge';
+  if (health === 'Fair') elements.statHealth.classList.add('fair');
+  else if (health === 'Poor') elements.statHealth.classList.add('poor');
+}
+
 elements.createRoomBtn.addEventListener('click', createRoom);
 
 elements.joinRoomBtn.addEventListener('click', () => {
@@ -486,6 +554,8 @@ elements.joinForm.addEventListener('submit', (e) => {
 elements.leaveRoomBtn.addEventListener('click', leaveRoom);
 elements.muteBtn.addEventListener('click', toggleMute);
 elements.copyRoomLinkBtn.addEventListener('click', copyRoomLink);
+elements.statsBtn.addEventListener('click', showStatsModal);
+elements.statsCloseBtn.addEventListener('click', hideStatsModal);
 elements.verifyKeysBtn.addEventListener('click', showVerification);
 elements.verifyCancelBtn.addEventListener('click', hideVerification);
 elements.verifyConfirmBtn.addEventListener('click', () => {

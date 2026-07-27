@@ -13,6 +13,7 @@ export class WebRTCManager {
     this.onPeerDisconnected = null;
     this.onDataMessage = null;
     this.onSpeakingChange = null;
+    this.onIceCandidate = null;
   }
 
   async initLocalStream() {
@@ -45,6 +46,9 @@ export class WebRTCManager {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('[WebRTC] ICE candidate for', peerId);
+        if (this.onIceCandidate) {
+          this.onIceCandidate(peerId, event.candidate);
+        }
       }
     };
 
@@ -78,6 +82,9 @@ export class WebRTCManager {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('[WebRTC] ICE candidate for', peerId);
+        if (this.onIceCandidate) {
+          this.onIceCandidate(peerId, event.candidate);
+        }
       }
     };
 

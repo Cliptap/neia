@@ -9,6 +9,7 @@
     "build:clean": "node scripts/clean-build.js",
     "preview": "vite preview",
     "test:quality": "node scripts/quality-test.js",
+    "test:e2e": "node scripts/e2e-peer-test.js",
     "tauri": "tauri"
   },
   "devDependencies": {
