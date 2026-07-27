@@ -205,6 +205,44 @@ export class WebRTCManager {
     return this.peers.size;
   }
 
+  async getPeerMetrics(peerId) {
+    const pc = this.peers.get(peerId);
+    if (!pc) return null;
+
+    try {
+      const stats = await pc.getStats();
+      let metrics = {
+        rtt: 0,
+        jitter: 0,
+        packetsLost: 0,
+        packetsReceived: 0,
+        packetLossRate: '0.0',
+        audioLevel: '0',
+        connectionState: pc.connectionState,
+      };
+
+      stats.forEach(report => {
+        if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+          metrics.jitter = Math.round((report.jitter || 0) * 1000);
+          metrics.packetsLost = report.packetsLost || 0;
+          metrics.packetsReceived = report.packetsReceived || 0;
+          const total = metrics.packetsLost + metrics.packetsReceived;
+          metrics.packetLossRate = total > 0 ? ((metrics.packetsLost / total) * 100).toFixed(1) : '0.0';
+          if (report.audioLevel !== undefined) {
+            metrics.audioLevel = (report.audioLevel * 100).toFixed(0);
+          }
+        } else if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          metrics.rtt = Math.round((report.currentRoundTripTime || 0) * 1000);
+        }
+      });
+
+      return metrics;
+    } catch (err) {
+      console.error('[WebRTC] Failed to get stats for', peerId, err);
+      return null;
+    }
+  }
+
   destroy() {
     for (const [peerId, pc] of this.peers) {
       pc.close();
