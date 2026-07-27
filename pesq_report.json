@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-07-27T20:33:04.698Z",
+  "codec": "Opus 48kHz / Wideband 16kHz",
+  "snrDb": 56.81,
+  "fidelityPercentage": 100,
+  "mosScore": 4.5,
+  "maxScore": 4.5,
+  "qualityRating": "Excellent",
+  "status": "PASS"
+}
