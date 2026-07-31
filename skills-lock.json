@@ -7,6 +7,11 @@
       "skillPath": "skills/agent-browser/SKILL.md",
       "computedHash": "a674b7d81066e3cc471a7512ddb4ae724418cbfefa75cbb050b0dc430e4d57a0"
     },
+    "anti-ui-slop": {
+      "source": "uizze.com",
+      "sourceType": "well-known",
+      "computedHash": "8960bfff7f85eccd8a4f4e231e4e81924209750ba44d8f8f26679696dd4ad43f"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
@@ -24,6 +29,21 @@
       "sourceType": "github",
       "skillPath": "skills/productivity/grill-me/SKILL.md",
       "computedHash": "7edd436132b43ea2973710f0c28a9879c9b0910651eb89a991a7e98cb6dbbacb"
+    },
+    "ui-design": {
+      "source": "uizze.com",
+      "sourceType": "well-known",
+      "computedHash": "2d36256889b303ed1a03dcf0862d54106515336973fd68b5ef051bb490df0c55"
+    },
+    "ui-radar": {
+      "source": "uizze.com",
+      "sourceType": "well-known",
+      "computedHash": "dea6e01f8fc1ab83cb3745732ed26189614ed149e769a2d3fb93f1c9e37c6008"
+    },
+    "ui-slop-score": {
+      "source": "uizze.com",
+      "sourceType": "well-known",
+      "computedHash": "a714f459fc4ad56ca1eb47d0ac58165f191058135b575b87a2c11ce025db94bc"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",
