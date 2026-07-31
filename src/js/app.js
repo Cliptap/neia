@@ -2,7 +2,7 @@ const { invoke } = window.__TAURI__.core;
 import { SignalingClient } from './signaling.js';
 import { WebRTCManager } from './webrtc.js';
 
-const SIGNALING_URLS = ['wss://signal.siec.live', 'ws://127.0.0.1:9876'];
+const SIGNALING_URLS = ['ws://127.0.0.1:9876'];
 
 const views = {
   landing: document.getElementById('landing-view'),
@@ -393,7 +393,7 @@ function toggleMute() {
 
 async function copyRoomLink() {
   try {
-    const link = `https://siec.live/join#${state.roomCode}:${state.secretKey || 'public'}`;
+    const link = `neia://join#${state.roomCode}:${state.secretKey || 'public'}`;
     await navigator.clipboard.writeText(link);
     notify('Secure invite link copied to clipboard!');
   } catch {
@@ -688,7 +688,7 @@ async function toggleAudioLoopbackTest() {
 
 function showQrModal() {
   if (!state.roomCode) return;
-  const link = `https://siec.live/join#${state.roomCode}:${state.secretKey || 'public'}`;
+  const link = `neia://join#${state.roomCode}:${state.secretKey || 'public'}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`;
   elements.qrContainer.innerHTML = `<img src="${qrUrl}" alt="Room QR Code" width="220" height="220" style="display:block; margin: 0 auto; border-radius: 8px;" />`;
   elements.qrModal.classList.remove('hidden');
