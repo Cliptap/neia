@@ -15,6 +15,7 @@ NEIA is an open-source, lightweight desktop voice and text chat application desi
 - **🎙️ Real-time Voice Activity Detection (VAD)**: Web Audio API RMS visual indicators highlighting active speakers in real time.
 - **💬 Encrypted Text Chat**: Secure WebRTC DataChannel text messaging alongside high-fidelity voice channels.
 - **🔗 Room Codes & Invite Links**: Instantly create rooms with 6-character non-ambiguous codes (e.g. `ABC123`) or shareable URL links.
+- **🛡️ Formal Cybersecurity Risk Matrix**: Comprehensive threat model, attack vector analysis, and mitigations documented in [docs/SECURITY_RISK_MATRIX.md](file:///c:/Users/andre/Documents/VSC%20Projects/neia-project/docs/SECURITY_RISK_MATRIX.md).
 
 ---
 
