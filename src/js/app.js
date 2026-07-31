@@ -93,6 +93,11 @@ function renderLocalUser() {
   `;
 }
 
+function generateSecretKey() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
 async function createRoom() {
   try {
     const nickname = elements.nicknameInput.value.trim();
@@ -105,6 +110,7 @@ async function createRoom() {
     const roomCode = await invoke('create_room');
 
     state.roomCode = roomCode;
+    state.secretKey = generateSecretKey();
     elements.roomCodeDisplay.textContent = roomCode;
 
     await initializeMedia(roomCode);
@@ -381,9 +387,9 @@ function toggleMute() {
 
 async function copyRoomLink() {
   try {
-    const link = `${window.location.origin}${window.location.pathname}?room=${state.roomCode}`;
+    const link = `https://siec.live/join#${state.roomCode}:${state.secretKey || 'public'}`;
     await navigator.clipboard.writeText(link);
-    notify('Invite link copied!');
+    notify('Secure invite link copied to clipboard!');
   } catch {
     notify('Failed to copy link');
   }
