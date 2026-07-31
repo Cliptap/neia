@@ -1,8 +1,77 @@
-const { invoke } = window.__TAURI__.core;
 import { SignalingClient } from './signaling.js';
+import { WebTorrentSignalingClient } from './webtorrent-signaling.js';
+import { NostrSignalingClient } from './nostr-signaling.js';
 import { WebRTCManager } from './webrtc.js';
 
-const SIGNALING_URLS = ['ws://127.0.0.1:9876'];
+class HybridSignalingClient {
+  constructor(localUrl = 'ws://127.0.0.1:9876') {
+    this.localClient = new SignalingClient([localUrl]);
+    this.webtorrentClient = new WebTorrentSignalingClient();
+    this.nostrClient = new NostrSignalingClient();
+    this.activeClient = null;
+    this.handlers = {};
+  }
+
+  on(type, handler) {
+    if (!this.handlers[type]) this.handlers[type] = [];
+    this.handlers[type].push(handler);
+    this.localClient.on(type, handler);
+    this.webtorrentClient.on(type, handler);
+    this.nostrClient.on(type, handler);
+  }
+
+  async connect(roomCode, nickname, secretKey = 'default') {
+    try {
+      console.log('[HybridSignaling] Attempting local embedded Rust server (127.0.0.1:9876)...');
+      await this.localClient.connect(roomCode, nickname);
+      this.activeClient = this.localClient;
+      console.log('[HybridSignaling] Connected to local Rust server');
+      return;
+    } catch (err) {
+      console.log('[HybridSignaling] Local server unreachable. Switching to WebTorrent P2P Swarm...');
+    }
+
+    try {
+      await this.webtorrentClient.connect(roomCode, secretKey, nickname);
+      this.activeClient = this.webtorrentClient;
+      console.log('[HybridSignaling] Connected via WebTorrent P2P Swarm');
+      return;
+    } catch (err) {
+      console.log('[HybridSignaling] WebTorrent trackers failed. Switching to Nostr Relays...');
+    }
+
+    try {
+      await this.nostrClient.connect(roomCode, secretKey, nickname);
+      this.activeClient = this.nostrClient;
+      console.log('[HybridSignaling] Connected via Nostr Encrypted Relays');
+      return;
+    } catch (err) {
+      throw new Error('All P2P signaling methods (Local, WebTorrent, Nostr) failed. Please check internet connection.');
+    }
+  }
+
+  sendIce(to, candidate) {
+    if (this.activeClient) this.activeClient.sendIce(to, candidate);
+  }
+
+  sendOffer(to, sdp) {
+    if (this.activeClient) this.activeClient.sendOffer(to, sdp);
+  }
+
+  sendAnswer(to, sdp) {
+    if (this.activeClient) this.activeClient.sendAnswer(to, sdp);
+  }
+
+  sendChat(nickname, text) {
+    if (this.activeClient && this.activeClient.sendChat) {
+      this.activeClient.sendChat(nickname, text);
+    }
+  }
+
+  disconnect() {
+    if (this.activeClient) this.activeClient.disconnect();
+  }
+}
 
 const views = {
   landing: document.getElementById('landing-view'),
@@ -151,9 +220,18 @@ async function joinRoom(roomCode) {
   }
 }
 
+const invoke = window.__TAURI__ ? window.__TAURI__.core.invoke : async (cmd, args) => {
+  if (cmd === 'create_room') return Math.random().toString(36).substring(2, 8).toUpperCase();
+  if (cmd === 'join_room') return args.roomCode;
+  if (cmd === 'set_nickname') return args.nickname;
+  if (cmd === 'get_public_key') return 'pubkey_browser';
+  if (cmd === 'verify_peer_key') return '123456';
+  return '';
+};
+
 async function initializeMedia(roomCode) {
   state.webrtc = new WebRTCManager();
-  state.signaling = new SignalingClient(SIGNALING_URLS);
+  state.signaling = new HybridSignalingClient();
 
   try {
     await state.webrtc.initLocalStream();
@@ -304,7 +382,7 @@ async function initializeMedia(roomCode) {
     }
   });
 
-  await state.signaling.connect(roomCode, state.nickname);
+  await state.signaling.connect(roomCode, state.nickname, state.secretKey);
 
   startVAD();
 }
