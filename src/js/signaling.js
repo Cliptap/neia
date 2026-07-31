@@ -44,7 +44,7 @@ export class SignalingClient {
           console.log(`[Signaling] Falling back to next URL: ${this.serverUrls[this.currentUrlIndex]}`);
           this.connect(room, nickname).then(resolve).catch(reject);
         } else {
-          reject(err);
+          reject(new Error(`Could not connect to signaling server (${this.serverUrl})`));
         }
       };
     });

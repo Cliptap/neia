@@ -122,7 +122,8 @@ async function createRoom() {
     showView('room');
     notify(`Room created: ${roomCode}`);
   } catch (error) {
-    notify(`Error: ${error}`);
+    const errMsg = error?.message || (error?.type ? 'Connection error' : String(error));
+    notify(`Error: ${errMsg}`);
   }
 }
 
@@ -145,7 +146,8 @@ async function joinRoom(roomCode) {
     showView('room');
     notify(`Joined room: ${validatedCode}`);
   } catch (error) {
-    notify(`Error: ${error}`);
+    const errMsg = error?.message || (error?.type ? 'Connection error' : String(error));
+    notify(`Error: ${errMsg}`);
   }
 }
 
