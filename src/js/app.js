@@ -41,6 +41,10 @@ const elements = {
   statLoss: document.getElementById('stat-loss'),
   statHealth: document.getElementById('stat-health'),
   testAudioBtn: document.getElementById('test-audio-btn'),
+  qrCodeBtn: document.getElementById('qr-code-btn'),
+  qrModal: document.getElementById('qr-modal'),
+  qrCloseBtn: document.getElementById('qr-close-btn'),
+  qrContainer: document.getElementById('qr-container'),
 };
 
 let state = {
@@ -474,6 +478,12 @@ function addPeer(peerId, nickname) {
   if (peerId === 'local' || peerId === state.myPeerId) return;
   if (elements.peersList.querySelector(`[data-peer-id="${peerId}"]`)) return;
 
+  const activeCount = elements.peersList.querySelectorAll('.peer-item:not(.self)').length;
+  if (activeCount >= 5) {
+    notify('Room limit reached (Max 6 participants for P2P Mesh quality)');
+    return;
+  }
+
   const peerEl = document.createElement('div');
   peerEl.className = 'peer-item';
   peerEl.dataset.peerId = peerId;
@@ -672,6 +682,25 @@ async function toggleAudioLoopbackTest() {
     notify(`Audio test error: ${err.message}`);
     state.isTestingAudio = false;
   }
+}
+
+function showQrModal() {
+  if (!state.roomCode) return;
+  const link = `https://siec.live/join#${state.roomCode}:${state.secretKey || 'public'}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`;
+  elements.qrContainer.innerHTML = `<img src="${qrUrl}" alt="Room QR Code" width="220" height="220" style="display:block; margin: 0 auto; border-radius: 8px;" />`;
+  elements.qrModal.classList.remove('hidden');
+}
+
+function hideQrModal() {
+  elements.qrModal.classList.add('hidden');
+}
+
+if (elements.qrCodeBtn) {
+  elements.qrCodeBtn.addEventListener('click', showQrModal);
+}
+if (elements.qrCloseBtn) {
+  elements.qrCloseBtn.addEventListener('click', hideQrModal);
 }
 
 elements.createRoomBtn.addEventListener('click', createRoom);
